@@ -55,11 +55,12 @@ export async function GET(request: NextRequest) {
             new Date(startDate).toISOString(),
             new Date(endDate).toISOString()
           );
+          const isOwner = t.id === user.id;
           const mapped = calEvents.map((e) => ({
             start: e.start,
             end: e.end,
             userId: t.id,
-            summary: e.summary,
+            summary: isOwner ? e.summary : '予定あり',
           }));
           events.push(...mapped);
           busyByUser[t.id] = calEvents.map((e) => ({ start: e.start, end: e.end }));
