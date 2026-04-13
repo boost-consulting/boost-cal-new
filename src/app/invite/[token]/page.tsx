@@ -29,9 +29,7 @@ export default function InviteAcceptPage({
 
   const handleAccept = () => {
     setState('loading');
-    // Redirect to Supabase OAuth with invite token as state
-    const redirectUrl = `${window.location.origin}/api/auth/guest-callback?state=${token}`;
-    window.location.href = `/api/auth/login?redirect_to=${encodeURIComponent(redirectUrl)}`;
+    window.location.href = `/api/auth/guest-login?token=${token}`;
   };
 
   return (

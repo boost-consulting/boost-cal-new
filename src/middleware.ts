@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/callback',
   '/api/auth/guest-callback',
+  '/api/auth/guest-login',
   '/api/auth/logout',
   '/api/health',
   '/api/schedule/',    // public availability & booking API
