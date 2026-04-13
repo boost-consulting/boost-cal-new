@@ -90,11 +90,10 @@ export function CalendarGrid({
 
   useEffect(() => {
     async function fetchEvents() {
-      const dates = getGridDates(0);
-      const endDates = getGridDates(3);
+      const dates = gridDates;
       const params = new URLSearchParams({
         startDate: toLocalDateStr(dates[0]),
-        endDate: toLocalDateStr(endDates[endDates.length - 1]),
+        endDate: toLocalDateStr(dates[dates.length - 1]),
       });
       if (participantIds.length > 0) params.set('userIds', participantIds.join(','));
       try {
@@ -106,7 +105,7 @@ export function CalendarGrid({
       } catch { /* ignore */ }
     }
     fetchEvents();
-  }, [participantIds]);
+  }, [participantIds, weekOffset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Events for a given date
   const getEventsForDate = useCallback((date: Date): BusyEvent[] => {

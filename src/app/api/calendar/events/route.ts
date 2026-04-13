@@ -42,40 +42,34 @@ export async function GET(request: NextRequest) {
   const events: { start: string; end: string; userId: string }[] = [];
   const busyByUser: Record<string, { start: string; end: string }[]> = {};
 
-  for (const t of tokens) {
-    busyByUser[t.id] = [];
+  // Fetch all users' calendars in parallel
+  await Promise.all(
+    tokens.map(async (t) => {
+      busyByUser[t.id] = [];
 
-    if (t.accessToken) {
-      try {
-        const calEvents = await getCalendarEvents(
-          t.accessToken,
-          t.refreshToken ?? undefined,
-          new Date(startDate).toISOString(),
-          new Date(endDate).toISOString()
-        );
-        const mapped = calEvents.map((e) => ({
-          start: e.start,
-          end: e.end,
-          userId: t.id,
-          summary: e.summary,
-        }));
-        events.push(...mapped);
-        busyByUser[t.id] = calEvents.map((e) => ({ start: e.start, end: e.end }));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[calendar/events] Failed for user ${t.id}:`, msg);
-        (busyByUser as Record<string, unknown>)[`_error_${t.id}`] = msg;
+      if (t.accessToken) {
+        try {
+          const calEvents = await getCalendarEvents(
+            t.accessToken,
+            t.refreshToken ?? undefined,
+            new Date(startDate).toISOString(),
+            new Date(endDate).toISOString()
+          );
+          const mapped = calEvents.map((e) => ({
+            start: e.start,
+            end: e.end,
+            userId: t.id,
+            summary: e.summary,
+          }));
+          events.push(...mapped);
+          busyByUser[t.id] = calEvents.map((e) => ({ start: e.start, end: e.end }));
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[calendar/events] Failed for user ${t.id}:`, msg);
+        }
       }
-    }
-  }
+    })
+  );
 
-  return NextResponse.json({
-    events,
-    busyByUser,
-    _debug: {
-      tokenCount: tokens.length,
-      tokensWithAccess: tokens.filter(t => t.accessToken).length,
-      userIds: allUserIds,
-    },
-  });
+  return NextResponse.json({ events, busyByUser });
 }

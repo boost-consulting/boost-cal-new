@@ -48,21 +48,23 @@ export async function GET(
   const timeMin = new Date(startDate).toISOString();
   const timeMax = new Date(endDate + 'T23:59:59+09:00').toISOString();
 
-  for (const t of tokens) {
-    if (t.accessToken) {
-      try {
-        const events = await getCalendarEvents(
-          t.accessToken,
-          t.refreshToken ?? undefined,
-          timeMin,
-          timeMax
-        );
-        busyTimes.push(...events.map((e) => ({ start: e.start, end: e.end })));
-      } catch {
-        // Skip users with invalid tokens
+  await Promise.all(
+    tokens.map(async (t) => {
+      if (t.accessToken) {
+        try {
+          const events = await getCalendarEvents(
+            t.accessToken,
+            t.refreshToken ?? undefined,
+            timeMin,
+            timeMax
+          );
+          busyTimes.push(...events.map((e) => ({ start: e.start, end: e.end })));
+        } catch {
+          // Skip users with invalid tokens
+        }
       }
-    }
-  }
+    })
+  );
 
   const calendarService = new CalendarService();
   const availableSlots = calendarService.calculateAvailability({
