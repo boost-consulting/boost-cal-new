@@ -101,7 +101,29 @@ export function WeekdayTimeSlotModal({
   const [dragStartY, setDragStartY] = useState<number | null>(null);
   const [dragEndY, setDragEndY] = useState<number | null>(null);
 
+  // Resize state: which slot edge is being dragged
+  const [resizing, setResizing] = useState<{
+    dayKey: string;
+    slotIndex: number;
+    edge: 'top' | 'bottom';
+  } | null>(null);
+  const [resizeY, setResizeY] = useState<number | null>(null);
+
+  const handleResizeStart = (
+    dayKey: string,
+    slotIndex: number,
+    edge: 'top' | 'bottom',
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = (e.currentTarget.parentElement!.parentElement as HTMLElement).getBoundingClientRect();
+    setResizing({ dayKey, slotIndex, edge });
+    setResizeY(e.clientY - rect.top);
+  };
+
   const handleMouseDown = (dayKey: string, e: React.MouseEvent<HTMLDivElement>) => {
+    if (resizing) return; // don't start new drag while resizing
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     setDragging(true);
@@ -111,6 +133,11 @@ export function WeekdayTimeSlotModal({
   };
 
   const handleMouseMove = (dayKey: string, e: React.MouseEvent<HTMLDivElement>) => {
+    if (resizing && resizing.dayKey === dayKey) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setResizeY(e.clientY - rect.top);
+      return;
+    }
     if (dragging && dayKey === dragDay) {
       const rect = e.currentTarget.getBoundingClientRect();
       setDragEndY(e.clientY - rect.top);
@@ -118,6 +145,35 @@ export function WeekdayTimeSlotModal({
   };
 
   const handleMouseUp = () => {
+    // Handle resize completion
+    if (resizing && resizeY !== null) {
+      const { dayKey, slotIndex, edge } = resizing;
+      const slots = [...(draft[dayKey] ?? [])];
+      const slot = slots[slotIndex];
+      if (slot) {
+        const newTime = yToTime(resizeY);
+        let newSlot: TimeSlot;
+        if (edge === 'top') {
+          newSlot = { start: newTime < slot.end ? newTime : slot.end, end: slot.end };
+        } else {
+          newSlot = { start: slot.start, end: newTime > slot.start ? newTime : slot.start };
+        }
+        // Only keep if slot has positive duration
+        if (newSlot.start < newSlot.end) {
+          slots[slotIndex] = newSlot;
+          setDraft({ ...draft, [dayKey]: mergeSlots(slots) });
+        } else {
+          // Remove the slot if it collapsed
+          slots.splice(slotIndex, 1);
+          setDraft({ ...draft, [dayKey]: slots });
+        }
+      }
+      setResizing(null);
+      setResizeY(null);
+      return;
+    }
+
+    // Handle new drag completion
     if (dragging && dragDay !== null && dragStartY !== null && dragEndY !== null) {
       const startTime = yToTime(Math.min(dragStartY, dragEndY));
       const endTime = yToTime(Math.max(dragStartY, dragEndY) + HOUR_HEIGHT / 2);
@@ -205,22 +261,45 @@ export function WeekdayTimeSlotModal({
 
                   {/* Existing slots */}
                   {slots.map((slot, i) => {
-                    const top = timeToY(slot.start);
-                    const height = timeToY(slot.end) - top;
+                    const slotTop = timeToY(slot.start);
+                    const slotBottom = timeToY(slot.end);
+                    // Apply resize preview
+                    let displayTop = slotTop;
+                    let displayBottom = slotBottom;
+                    if (resizing && resizing.dayKey === dayKey && resizing.slotIndex === i && resizeY !== null) {
+                      if (resizing.edge === 'top') {
+                        displayTop = Math.min(resizeY, displayBottom);
+                      } else {
+                        displayBottom = Math.max(resizeY, displayTop);
+                      }
+                    }
+                    const height = displayBottom - displayTop;
                     if (height <= 0) return null;
                     return (
                       <div
                         key={`slot-${i}`}
                         className="absolute left-1 right-1 bg-blue-50 border border-dashed border-blue-400 rounded px-1 overflow-hidden cursor-pointer group"
-                        style={{ top, height }}
+                        style={{ top: displayTop, height }}
                         onClick={(e) => { e.stopPropagation(); clearDay(dayKey); }}
                       >
+                        {/* Top resize handle */}
+                        <div
+                          className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-10 hover:bg-blue-200/50"
+                          onMouseDown={(e) => handleResizeStart(dayKey, i, 'top', e)}
+                        />
                         <div className="text-[10px] leading-3 text-blue-600 mt-px truncate font-medium">
-                          {slot.start} - {slot.end}
+                          {resizing?.dayKey === dayKey && resizing?.slotIndex === i && resizeY !== null
+                            ? `${resizing.edge === 'top' ? yToTime(resizeY) : slot.start} - ${resizing.edge === 'bottom' ? yToTime(resizeY) : slot.end}`
+                            : `${slot.start} - ${slot.end}`}
                         </div>
                         <div className="text-[9px] text-blue-400 truncate hidden group-hover:block">
                           クリックで解除
                         </div>
+                        {/* Bottom resize handle */}
+                        <div
+                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10 hover:bg-blue-200/50"
+                          onMouseDown={(e) => handleResizeStart(dayKey, i, 'bottom', e)}
+                        />
                       </div>
                     );
                   })}
