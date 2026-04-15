@@ -99,9 +99,18 @@ export function ScheduleBookingContent({ slug }: Props) {
   const gridDates = getGridDates(weekOffset);
 
   const fetchAvailability = useCallback(async () => {
+    const weekDates = getGridDates(weekOffset);
+    const fmt = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
     const params = new URLSearchParams({
       meetingMode,
       duration: duration.toString(),
+      startDate: fmt(weekDates[0]),
+      endDate: fmt(weekDates[weekDates.length - 1]),
     });
 
     const res = await fetch(`/api/schedule/${slug}/availability?${params}`);
@@ -126,7 +135,7 @@ export function ScheduleBookingContent({ slug }: Props) {
     }
     setSlots(data.availableSlots);
     setState('selecting');
-  }, [slug, meetingMode, duration]);
+  }, [slug, meetingMode, duration, weekOffset]);
 
   useEffect(() => {
     fetchAvailability();
