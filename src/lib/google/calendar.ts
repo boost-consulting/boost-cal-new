@@ -112,7 +112,16 @@ export async function createCalendarEvent(
   };
 }
 
-/** Fetch conference rooms from Google Workspace */
+/** Custom rooms not managed in Google Workspace */
+const CUSTOM_CONFERENCE_ROOMS: { id: string; name: string; capacity: number }[] = [
+  {
+    id: 'boost-capital-office',
+    name: 'ブーストキャピタルオフィス（麻布台ヒルズガーデンプラザB4階）',
+    capacity: 0,
+  },
+];
+
+/** Fetch conference rooms from Google Workspace, merged with custom rooms */
 export async function getConferenceRooms(
   accessToken: string,
   refreshToken?: string
@@ -125,12 +134,14 @@ export async function getConferenceRooms(
       customer: 'my_customer',
     });
 
-    return (res.data.items ?? []).map((room) => ({
+    const workspaceRooms = (res.data.items ?? []).map((room) => ({
       id: room.resourceId ?? '',
       name: room.resourceName ?? '',
       capacity: room.capacity ?? 0,
     }));
+
+    return [...workspaceRooms, ...CUSTOM_CONFERENCE_ROOMS];
   } catch {
-    return [];
+    return [...CUSTOM_CONFERENCE_ROOMS];
   }
 }
