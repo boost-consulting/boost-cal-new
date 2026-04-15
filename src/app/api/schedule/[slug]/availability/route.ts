@@ -84,6 +84,7 @@ export async function GET(
       name: link.name,
       description: link.description,
       ownerName: owner?.name ?? '',
+      duration: link.duration,
       allowedDurations: link.settings.allowedDurations,
       meetingOptions: {
         allowOnline: link.settings.meetingOptions.allowOnline,

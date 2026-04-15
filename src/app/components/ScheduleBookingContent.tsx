@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 interface AvailableSlot {
   start: string;
@@ -11,6 +11,7 @@ interface LinkInfo {
   name: string;
   description: string | null;
   ownerName: string;
+  duration: number;
   allowedDurations: number[];
   meetingOptions: {
     allowOnline: boolean;
@@ -76,6 +77,7 @@ export function ScheduleBookingContent({ slug }: Props) {
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [duration, setDuration] = useState<number>(30);
+  const durationInitializedRef = useRef(false);
   const [meetingMode, setMeetingMode] = useState<MeetingMode>('online');
   const [errorMessage, setErrorMessage] = useState('');
   const [weekOffset, setWeekOffset] = useState(0);
@@ -111,6 +113,17 @@ export function ScheduleBookingContent({ slug }: Props) {
 
     const data = await res.json();
     setLinkInfo(data.linkInfo);
+    // Sync duration from the link on first load so the public page reflects the owner's latest setting.
+    if (!durationInitializedRef.current) {
+      const linkDuration: number | undefined =
+        data.linkInfo?.duration ?? data.linkInfo?.allowedDurations?.[0];
+      if (typeof linkDuration === 'number' && linkDuration !== duration) {
+        durationInitializedRef.current = true;
+        setDuration(linkDuration);
+        return; // effect will re-run with the correct duration
+      }
+      durationInitializedRef.current = true;
+    }
     setSlots(data.availableSlots);
     setState('selecting');
   }, [slug, meetingMode, duration]);
