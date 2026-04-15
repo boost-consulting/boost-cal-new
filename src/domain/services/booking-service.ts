@@ -2,7 +2,7 @@ import type { Booking, MeetingMode } from '@/domain/models/booking';
 import type { BookingRepository } from '@/domain/repositories/booking-repository';
 import type { ScheduleLinkRepository } from '@/domain/repositories/schedule-link-repository';
 import type { UserRepository } from '@/domain/repositories/user-repository';
-import { createCalendarEvent } from '@/lib/google/calendar';
+import { createCalendarEvent, getConferenceRoomById, getCustomConferenceRoomName } from '@/lib/google/calendar';
 import {
   sendEmail,
   buildBookingNotificationEmail,
@@ -93,10 +93,27 @@ export class BookingService {
         const externalEmails = link.settings.participants?.externalEmails ?? [];
         attendeeEmails.push(...externalEmails);
 
+        // Resolve conference room: Workspace rooms get auto-invited; custom rooms only provide a location label.
+        let conferenceRoomEmail: string | undefined;
+        let roomLocationLabel: string | null = null;
+        if (conferenceRoomId) {
+          const workspaceRoom = await getConferenceRoomById(
+            owner.accessToken,
+            owner.refreshToken ?? undefined,
+            conferenceRoomId
+          );
+          if (workspaceRoom) {
+            conferenceRoomEmail = workspaceRoom.email;
+            roomLocationLabel = workspaceRoom.name;
+          } else {
+            roomLocationLabel = getCustomConferenceRoomName(conferenceRoomId);
+          }
+        }
+
         try {
           const location = locationName
             ? `${locationName}${locationAddress ? ` (${locationAddress})` : ''}`
-            : undefined;
+            : (roomLocationLabel ?? undefined);
 
           const event = await createCalendarEvent({
             accessToken: owner.accessToken,
@@ -107,6 +124,7 @@ export class BookingService {
             endTime: input.endTime,
             attendeeEmails,
             conferenceRoomId: conferenceRoomId ?? undefined,
+            conferenceRoomEmail,
             location,
             createMeetLink,
           });

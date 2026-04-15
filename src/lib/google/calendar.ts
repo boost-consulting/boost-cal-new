@@ -54,6 +54,7 @@ export interface CreateEventParams {
   endTime: string;
   attendeeEmails: string[];
   conferenceRoomId?: string;
+  conferenceRoomEmail?: string;
   location?: string;
   createMeetLink: boolean;
 }
@@ -71,7 +72,10 @@ export async function createCalendarEvent(
   const auth = createOAuth2Client(params.accessToken, params.refreshToken);
   const calendar = google.calendar({ version: 'v3', auth });
 
-  const attendees = params.attendeeEmails.map((email) => ({ email }));
+  const attendees: { email: string; resource?: boolean }[] = params.attendeeEmails.map((email) => ({ email }));
+  if (params.conferenceRoomEmail) {
+    attendees.push({ email: params.conferenceRoomEmail, resource: true });
+  }
 
   const eventBody: Record<string, unknown> = {
     summary: params.summary,
@@ -112,7 +116,7 @@ export async function createCalendarEvent(
   };
 }
 
-/** Custom rooms not managed in Google Workspace */
+/** Custom rooms not managed in Google Workspace (no calendar resource, no auto-invite) */
 const CUSTOM_CONFERENCE_ROOMS: { id: string; name: string; capacity: number }[] = [
   {
     id: 'boost-capital-office',
@@ -120,6 +124,40 @@ const CUSTOM_CONFERENCE_ROOMS: { id: string; name: string; capacity: number }[] 
     capacity: 0,
   },
 ];
+
+export function isCustomConferenceRoom(id: string): boolean {
+  return CUSTOM_CONFERENCE_ROOMS.some((r) => r.id === id);
+}
+
+export function getCustomConferenceRoomName(id: string): string | null {
+  return CUSTOM_CONFERENCE_ROOMS.find((r) => r.id === id)?.name ?? null;
+}
+
+/** Look up a single Workspace conference room by resourceId */
+export async function getConferenceRoomById(
+  accessToken: string,
+  refreshToken: string | undefined,
+  resourceId: string
+): Promise<{ id: string; name: string; email: string; capacity: number } | null> {
+  if (isCustomConferenceRoom(resourceId)) return null;
+  const auth = createOAuth2Client(accessToken, refreshToken);
+  const admin = google.admin({ version: 'directory_v1', auth });
+  try {
+    const res = await admin.resources.calendars.get({
+      customer: 'my_customer',
+      calendarResourceId: resourceId,
+    });
+    if (!res.data.resourceEmail) return null;
+    return {
+      id: res.data.resourceId ?? resourceId,
+      name: res.data.resourceName ?? '',
+      email: res.data.resourceEmail,
+      capacity: res.data.capacity ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /** Fetch conference rooms from Google Workspace, merged with custom rooms */
 export async function getConferenceRooms(
