@@ -1,6 +1,14 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import holidayJpModule from '@holiday-jp/holiday_jp';
+
+const holidayJp = holidayJpModule as { isHoliday?: (d: Date) => boolean; default?: { isHoliday: (d: Date) => boolean } };
+const isHolidayDate = (date: Date): boolean => {
+  if (typeof holidayJp.isHoliday === 'function') return holidayJp.isHoliday(date);
+  if (holidayJp.default && typeof holidayJp.default.isHoliday === 'function') return holidayJp.default.isHoliday(date);
+  return false;
+};
 
 interface TimeSlot {
   start: string; // "HH:mm"
@@ -249,8 +257,18 @@ export function CalendarGrid({
           const isToday = isSameDay(date, today);
           const isPast = date < today;
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          const dateStr = toLocalDateStr(date);
+          const isHoliday = excludeHolidays && isHolidayDate(date);
+          const override = dateOverrides[dateStr];
+          const isWholeDayExcluded = override !== undefined && override.length === 0;
+          const isExcluded = isHoliday || isWholeDayExcluded;
           const dayEvents = getEventsForDate(date);
-          const availSlots = weekdayTimeSlots[dayKey] ?? [];
+          const baseAvailSlots = weekdayTimeSlots[dayKey] ?? [];
+          const availSlots = isExcluded
+            ? []
+            : (override && override.length > 0
+                ? subtractRanges(baseAvailSlots, override)
+                : baseAvailSlots);
 
           return (
             <div
@@ -258,14 +276,14 @@ export function CalendarGrid({
               className={`flex-1 min-w-0 ${dateIdx > 0 ? 'border-l border-gray-200' : ''}`}
             >
               {/* Day header */}
-              <div className={`h-14 flex flex-col items-center justify-center border-b border-gray-200 ${isPast ? 'bg-gray-50' : 'bg-white'}`}>
-                <span className={`text-xs ${isWeekend ? 'text-gray-400' : isToday ? 'text-blue-600' : 'text-gray-500'}`}>
-                  {DAY_LABELS[date.getDay()]}
+              <div className={`h-14 flex flex-col items-center justify-center border-b border-gray-200 ${isPast || isExcluded ? 'bg-gray-50' : 'bg-white'}`}>
+                <span className={`text-xs ${isHoliday ? 'text-rose-500' : isWeekend ? 'text-gray-400' : isToday ? 'text-blue-600' : 'text-gray-500'}`}>
+                  {DAY_LABELS[date.getDay()]}{isHoliday ? '・祝' : ''}
                 </span>
                 <span className={`text-sm font-medium leading-6 ${
                   isToday
                     ? 'bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center'
-                    : isPast ? 'text-gray-300' : 'text-gray-800'
+                    : isPast ? 'text-gray-300' : isHoliday ? 'text-rose-500' : 'text-gray-800'
                 }`}>
                   {date.getDate()}
                 </span>
@@ -273,10 +291,10 @@ export function CalendarGrid({
 
               {/* Time body */}
               <div
-                className={`relative select-none ${isPast ? 'bg-gray-50' : 'bg-white'}`}
+                className={`relative select-none ${isPast || isExcluded ? 'bg-gray-50' : 'bg-white'}`}
                 style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}
-                onMouseDown={(e) => !isPast && handleColumnMouseDown(dayKey, e)}
-                onMouseMove={(e) => !isPast && handleColumnMouseMove(dayKey, e)}
+                onMouseDown={(e) => !isPast && !isExcluded && handleColumnMouseDown(dayKey, e)}
+                onMouseMove={(e) => !isPast && !isExcluded && handleColumnMouseMove(dayKey, e)}
               >
                 {/* Hour lines */}
                 {Array.from({ length: TOTAL_HOURS }, (_, i) => (
@@ -288,7 +306,7 @@ export function CalendarGrid({
                 ))}
 
                 {/* Availability blocks (subtract busy times) */}
-                {!isPast && (() => {
+                {!isPast && !isExcluded && (() => {
                   // Convert busy events to {start, end} in "HH:mm" for this date
                   const busyRanges = dayEvents.map((ev) => {
                     const s = new Date(ev.start);
@@ -400,6 +418,21 @@ export function CalendarGrid({
       </div>
     </div>
   );
+}
+
+function subtractRanges(slots: TimeSlot[], exclusions: TimeSlot[]): TimeSlot[] {
+  let result = slots.map((s) => ({ ...s }));
+  for (const ex of exclusions) {
+    const next: TimeSlot[] = [];
+    for (const s of result) {
+      if (ex.end <= s.start || ex.start >= s.end) { next.push(s); continue; }
+      if (ex.start <= s.start && ex.end >= s.end) continue;
+      if (ex.start > s.start) next.push({ start: s.start, end: ex.start });
+      if (ex.end < s.end) next.push({ start: ex.end, end: s.end });
+    }
+    result = next;
+  }
+  return result;
 }
 
 function mergeSlots(slots: TimeSlot[]): TimeSlot[] {
