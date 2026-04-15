@@ -26,8 +26,8 @@ type PageState = 'loading' | 'selecting' | 'form' | 'complete' | 'error';
 
 const MEETING_MODE_LABELS: Record<MeetingMode, string> = {
   online: 'オンライン',
-  inPerson_office: '対面（社内）',
-  inPerson_visit: '対面（訪問）',
+  inPerson_office: '対面（弊社オフィス）',
+  inPerson_visit: '対面（貴社指定）',
 };
 
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
