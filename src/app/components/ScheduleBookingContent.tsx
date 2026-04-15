@@ -268,9 +268,9 @@ export function ScheduleBookingContent({ slug }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex gap-6 max-w-[1400px] mx-auto p-6">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-[1400px] mx-auto p-4 lg:p-6">
         {/* Left: Info & Form */}
-        <div className="w-[340px] flex-shrink-0 space-y-6">
+        <div className="w-full lg:w-[340px] flex-shrink-0 space-y-6">
           {linkInfo && (
             <div>
               <h1 className="text-xl font-bold text-gray-900">{linkInfo.name}</h1>
@@ -431,7 +431,7 @@ export function ScheduleBookingContent({ slug }: Props) {
         </div>
 
         {/* Right: Calendar Grid */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 w-full">
           {/* Navigation */}
           <div className="flex items-center gap-3 mb-4">
             <button
@@ -457,7 +457,8 @@ export function ScheduleBookingContent({ slug }: Props) {
           </div>
 
           {/* Calendar */}
-          <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
+          <div className="overflow-x-auto -mx-4 lg:mx-0 px-4 lg:px-0">
+          <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white min-w-[640px]">
             {/* Time axis */}
             <div className="w-12 flex-shrink-0 border-r border-gray-200">
               <div className="h-14" />
@@ -544,6 +545,7 @@ export function ScheduleBookingContent({ slug }: Props) {
                 </div>
               );
             })}
+          </div>
           </div>
 
           {/* Legend */}
