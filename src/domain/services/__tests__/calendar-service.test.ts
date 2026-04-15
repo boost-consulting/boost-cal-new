@@ -106,10 +106,10 @@ describe('CalendarService', () => {
       expect(slots.length).toBeGreaterThan(0);
     });
 
-    it('should apply dateOverrides', () => {
+    it('should treat dateOverrides entries as exclusion ranges', () => {
       const settings = makeSettings({
         dateOverrides: {
-          '2026-04-13': [{ start: '10:00', end: '11:00' }], // Only 10-11 on Monday
+          '2026-04-13': [{ start: '10:00', end: '11:00' }], // Exclude 10-11 on Monday
         },
       });
 
@@ -121,8 +121,10 @@ describe('CalendarService', () => {
         busyTimes: [],
       });
 
-      expect(slots).toHaveLength(2); // 10:00-10:30, 10:30-11:00
-      expect(slots[0].start).toContain('10:00');
+      // Normally 14 slots; subtract 10:00-10:30 and 10:30-11:00 = 12
+      expect(slots).toHaveLength(12);
+      expect(slots.some((s) => s.start.includes('10:00'))).toBe(false);
+      expect(slots.some((s) => s.start.includes('10:30'))).toBe(false);
     });
 
     it('should exclude date when override is empty array', () => {
@@ -143,11 +145,11 @@ describe('CalendarService', () => {
       expect(slots).toHaveLength(0);
     });
 
-    it('should not exclude holiday when dateOverrides has explicit slots', () => {
+    it('should still exclude holiday even when dateOverrides has exclusion ranges', () => {
       const settings = makeSettings({
         excludeHolidays: true,
         dateOverrides: {
-          '2026-04-29': [{ start: '10:00', end: '12:00' }], // Explicit override on holiday
+          '2026-04-29': [{ start: '10:00', end: '12:00' }],
         },
       });
 
@@ -159,7 +161,7 @@ describe('CalendarService', () => {
         busyTimes: [],
       });
 
-      expect(slots).toHaveLength(4); // 10:00-10:30, 10:30-11:00, 11:00-11:30, 11:30-12:00
+      expect(slots).toHaveLength(0);
     });
 
     it('should exclude busy times from slots', () => {

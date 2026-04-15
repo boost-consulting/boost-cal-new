@@ -86,11 +86,10 @@ export class CalendarService {
     dayOfWeek: string,
     settings: LinkSettings
   ): TimeSlot[] | null {
-    // Check dateOverrides first
-    if (settings.dateOverrides && dateStr in settings.dateOverrides) {
-      const overrides = settings.dateOverrides[dateStr];
-      if (overrides.length === 0) return null; // explicitly excluded
-      return overrides;
+    // Whole-day exclusion via dateOverrides
+    const override = settings.dateOverrides?.[dateStr];
+    if (override !== undefined && override.length === 0) {
+      return null;
     }
 
     // Check if holiday
@@ -101,12 +100,36 @@ export class CalendarService {
       }
     }
 
-    // Use weekday time slots
-    const daySlots = settings.weekdayTimeSlots[dayOfWeek];
-    if (!daySlots || daySlots.length === 0) return null;
+    // Weekday base
+    const base = settings.weekdayTimeSlots[dayOfWeek];
+    if (!base || base.length === 0) return null;
 
-    return daySlots;
+    // Partial exclusions via dateOverrides: subtract exclusion ranges
+    if (override && override.length > 0) {
+      const subtracted = subtractRanges(base, override);
+      return subtracted.length > 0 ? subtracted : null;
+    }
+
+    return base;
   }
+}
+
+function subtractRanges(slots: TimeSlot[], exclusions: TimeSlot[]): TimeSlot[] {
+  let result = slots.map((s) => ({ ...s }));
+  for (const ex of exclusions) {
+    const next: TimeSlot[] = [];
+    for (const s of result) {
+      if (ex.end <= s.start || ex.start >= s.end) {
+        next.push(s);
+        continue;
+      }
+      if (ex.start <= s.start && ex.end >= s.end) continue;
+      if (ex.start > s.start) next.push({ start: s.start, end: ex.start });
+      if (ex.end < s.end) next.push({ start: ex.end, end: s.end });
+    }
+    result = next;
+  }
+  return result;
 }
 
 function formatDate(date: Date): string {
