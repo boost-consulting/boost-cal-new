@@ -30,6 +30,16 @@ export class BookingService {
     const startTime = new Date(input.startTime);
     const endTime = new Date(input.endTime);
 
+    // Already-booked check: same email already has an upcoming confirmed booking on this link
+    const existing = await this.bookingRepository.findActiveByEmailAndLink(
+      link.id,
+      input.clientEmail,
+      new Date()
+    );
+    if (existing) {
+      throw new Error('このリンクでは既に予約済みです');
+    }
+
     // Double booking check
     const hasOverlap = await this.bookingRepository.checkOverlap(
       link.id,

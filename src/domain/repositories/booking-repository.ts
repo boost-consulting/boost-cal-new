@@ -69,6 +69,26 @@ export class BookingRepository {
     return toBooking(data);
   }
 
+  async findActiveByEmailAndLink(
+    scheduleLinkId: string,
+    clientEmail: string,
+    from: Date
+  ): Promise<Booking | null> {
+    const { data, error } = await this.db
+      .from('bookings')
+      .select('*')
+      .eq('schedule_link_id', scheduleLinkId)
+      .eq('client_email', clientEmail)
+      .eq('status', 'CONFIRMED')
+      .gte('start_time', from.toISOString())
+      .order('start_time', { ascending: true })
+      .limit(1);
+
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as BookingRow[];
+    return rows.length > 0 ? toBooking(rows[0]) : null;
+  }
+
   async checkOverlap(
     scheduleLinkId: string,
     startTime: Date,

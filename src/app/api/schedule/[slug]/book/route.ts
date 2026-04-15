@@ -62,6 +62,12 @@ export async function POST(
           { status: 404 }
         );
       }
+      if (error.message.includes('既に予約済み')) {
+        return NextResponse.json(
+          { message: error.message, error: 'ALREADY_BOOKED' },
+          { status: 409 }
+        );
+      }
       if (error.message.includes('既に予約')) {
         return NextResponse.json(
           { message: error.message, error: 'DOUBLE_BOOKING' },

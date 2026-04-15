@@ -181,6 +181,10 @@ export function ScheduleBookingContent({ slug }: Props) {
           setFormErrors({ general: 'この時間帯は既に予約されています。別の時間を選択してください。' });
           return;
         }
+        if (err.error === 'ALREADY_BOOKED') {
+          setFormErrors({ general: 'このリンクでは既に予約済みです。変更・キャンセルは予約完了メールからお願いします。' });
+          return;
+        }
         setFormErrors({ general: err.message ?? '予約に失敗しました' });
         return;
       }
@@ -192,18 +196,23 @@ export function ScheduleBookingContent({ slug }: Props) {
         endTime: data.endTime,
       });
       setState('complete');
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', window.location.href);
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleMeetingModeChange = (mode: MeetingMode) => {
+    if (mode === meetingMode) return;
     setMeetingMode(mode);
     setSelectedSlot(null);
     setState('loading');
   };
 
   const handleDurationChange = (d: number) => {
+    if (d === duration) return;
     setDuration(d);
     setSelectedSlot(null);
     setState('loading');
