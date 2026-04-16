@@ -33,12 +33,12 @@ export class CalendarService {
     const { settings, startDate, endDate, duration, busyTimes, bufferMinutes = 0 } = params;
     const slots: AvailableSlot[] = [];
 
-    const current = new Date(startDate + 'T00:00:00+09:00');
-    const end = new Date(endDate + 'T23:59:59+09:00');
+    const current = new Date(startDate + 'T00:00:00Z');
+    const end = new Date(endDate + 'T23:59:59Z');
 
     while (current <= end) {
       const dateStr = formatDate(current);
-      const dayOfWeek = current.getDay().toString(); // 0=Sun, 1=Mon, ...
+      const dayOfWeek = current.getUTCDay().toString(); // 0=Sun, 1=Mon, ...
 
       const daySlots = this.getDayTimeSlots(dateStr, dayOfWeek, settings);
 
@@ -75,7 +75,7 @@ export class CalendarService {
       }
 
       // Next day
-      current.setDate(current.getDate() + 1);
+      current.setUTCDate(current.getUTCDate() + 1);
     }
 
     return slots;
@@ -133,9 +133,9 @@ function subtractRanges(slots: TimeSlot[], exclusions: TimeSlot[]): TimeSlot[] {
 }
 
 function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
